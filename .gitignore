@@ -1,0 +1,9 @@
+.idea/
+.idea/*
+*.npy
+*.mat
+*.png
+notebooks/.ipynb_checkpoints/
+data/numpy/*
+data/images/*
+data/mat/*
