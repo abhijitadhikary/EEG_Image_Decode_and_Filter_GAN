@@ -22,7 +22,7 @@ class CreateDataset(Dataset):
         self.alcoholism = mat['label_alcoholism']
 
         self.images = mat['data']
-        self.images = convert(self.images, -1, 1, self.images.dtype)
+        self.images = convert(self.images, 0, 1, self.images.dtype)
 
         self.num_samples = len(self.images)
 
@@ -38,12 +38,15 @@ class CreateDataset(Dataset):
         alcoholism = torch.tensor(self.alcoholism[index], dtype=torch.int64)
 
         image = self.images[index]
-        image = torch.tensor(image)
+        image = torch.tensor(image, dtype=torch.float32).permute(2, 0, 1)
 
         if not self.transform is None:
             image = self.transform(image)
 
-        return image, identity, stimulus, alcoholism
+        # prepare mask for conditional generation
+        image_cat, condition_array = get_conditioned_image(image)
+        return image, image_cat, identity, stimulus, alcoholism, condition_array
+
 
 def get_dataloaders(args):
 
@@ -56,3 +59,14 @@ def get_dataloaders(args):
     dataloader_validation = DataLoader(dataset_validation, batch_size=args.batch_size_validation, shuffle=args.shuffle_validation)
 
     return dataloader_train, dataloader_test, dataloader_validation
+
+def get_conditioned_image(image):
+    '''
+    create random conditions {0,1} for each feature and concatenate them to the image
+    '''
+    num_channels, height, width = image.shape
+    num_features = 3
+    condition_array = torch.tensor([(np.random.rand(1) > 0.5).astype(np.float32) for index in range(num_features)]).reshape(-1)
+    filter_identity, filter_stimulus, filter_alcoholism = ([condition_array[index] * torch.ones((1, height, width)) for index in range(3)])
+    image = torch.cat((image, filter_identity, filter_stimulus, filter_alcoholism), dim=0)
+    return image, condition_array
