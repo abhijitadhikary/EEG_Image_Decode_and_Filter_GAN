@@ -3,7 +3,7 @@ import torch.nn as nn
 
 
 class Discriminator(nn.Module):
-    def __init__(self, nc=3, ndf=32, ngpu=1):
+    def __init__(self, nc=6, ndf=32, ngpu=1):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
         self.main = nn.Sequential(
