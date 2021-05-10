@@ -66,7 +66,7 @@ def get_conditioned_image(image):
     '''
     num_channels, height, width = image.shape
     num_features = 3
-    condition_array = torch.tensor([(np.random.rand(1) > 0.5).astype(np.float32) for index in range(num_features)]).reshape(-1)
-    filter_identity, filter_stimulus, filter_alcoholism = ([condition_array[index] * torch.ones((1, height, width)) for index in range(3)])
+    condition_array = torch.tensor([(np.random.rand(1) > 0.5).astype(np.float32) for index in range(num_features)])
+    filter_identity, filter_stimulus, filter_alcoholism = ([condition_array[index] * torch.ones((1, height, width), dtype=torch.float32) for index in range(3)])
     image = torch.cat((image, filter_identity, filter_stimulus, filter_alcoholism), dim=0)
     return image, condition_array

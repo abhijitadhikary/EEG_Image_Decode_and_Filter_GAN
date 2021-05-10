@@ -11,7 +11,7 @@ def get_args():
     args.shuffle_train = True
     args.shuffle_test = True
     args.shuffle_validation = True
-    args.batch_size_train = 1
+    args.batch_size_train = 20
     args.batch_size_test = 1
     args.batch_size_validation = 1
 
