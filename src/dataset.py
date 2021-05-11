@@ -17,7 +17,6 @@ class CreateDataset(Dataset):
         self.alcoholism = mat['label_alcoholism']
 
         self.images = mat['data']
-        self.images = convert(self.images, 0, 1, self.images.dtype)
 
         self.num_samples = len(self.images)
 
@@ -34,6 +33,7 @@ class CreateDataset(Dataset):
 
         image = self.images[index]
         image = torch.tensor(image, dtype=torch.float32).permute(2, 0, 1)
+        image = convert(image, 0, 1, torch.float32)
 
         if not self.transform is None:
             image = self.transform(image)
@@ -81,6 +81,6 @@ def convert(source, min_value=0, max_value=1, type=torch.float32):
 
   a = (max_value - min_value) / (smax - smin)
   b = max_value - a * smax
-  target = (a * source + b).astype(type)
+  target = (a * source + b)
 
   return target

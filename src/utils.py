@@ -15,7 +15,7 @@ import numpy as np
 def get_args():
     args = argparse.Namespace()
     args.cuda_index = 0
-    args.num_epochs = 20
+    args.num_epochs = 200
     args.start_epoch = 0
     args.batch_size = True
     args.root = '..'
@@ -27,10 +27,13 @@ def get_args():
     args.batch_size_test = 192
     args.batch_size_validation = 192
     args.loss_D_factor = 1
+    args.loss_G_gan_factor = 1
+    args.loss_G_l1_factor = 1
     args.learning_rate = 0.0002
     args.num_keep_best = 3
-    args.resume_condition = True
-    args.resume_epoch = 9
+    args.resume_condition = False
+    args.save_condition = True
+    args.resume_epoch = 38
     args.checkpoint_path = os.path.join('..', 'experiments', 'checkpoints')
     return args
 
@@ -41,7 +44,7 @@ def setup_model_parameters():
     args.model_D = Discriminator().to(args.device)
 
     args.criterion_D = nn.BCELoss()
-    args.criterion_G = nn.BCELoss()
+    args.criterion_G = nn.L1Loss()
 
     args.optimizer_D = optim.Adam(args.model_D.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
     args.optimizer_G = optim.Adam(args.model_G.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
@@ -125,7 +128,7 @@ def remove_all_files(args, path):
         os.remove(current_full_path)
 
 def save_model(args, loss_Dl, loss_G):
-    if loss_G < args.loss_G_best:
+    if loss_G < args.loss_G_best and args.save_condition:
         args.loss_G_best = loss_G
 
         remove_all_files(args, args.checkpoint_path)

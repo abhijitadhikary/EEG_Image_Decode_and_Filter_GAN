@@ -47,7 +47,9 @@ def forward_pass(args, dataloader, mode='train'):
         # train generator
         out_D_fake = args.model_D(image_fake).squeeze(3)
         args.model_G.zero_grad()
-        loss_G = args.criterion_G(out_D_fake, condition_array_fake)
+        loss_G_gan = args.criterion_D(out_D_fake, condition_array_fake)
+        loss_G_L1 = args.criterion_G(image_fake_temp, image_real[:, :3, :, :])
+        loss_G = (loss_G_gan * args.loss_G_gan_factor) + (loss_G_L1 * args.loss_G_l1_factor)
 
         if mode == 'train':
             loss_G.backward()
