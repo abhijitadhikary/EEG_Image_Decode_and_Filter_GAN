@@ -12,11 +12,11 @@ class CreateDataset(Dataset):
         self.mat_path = os.path.join(dataset_path, 'mat', f'uci_eeg_images_{variant}_within.mat')
 
         mat = loadmat(self.mat_path)
-        self.identity = mat['label_id']
-        self.stimulus = mat['label_stimulus']
-        self.alcoholism = mat['label_alcoholism']
+        self.identity = convert(mat['label_id'], 0, 1)
+        self.stimulus = convert(mat['label_stimulus'], 0, 1)
+        self.alcoholism = convert(mat['label_alcoholism'], 0, 1)
 
-        self.images = mat['data']
+        self.images = convert(mat['data'], 0, 1)
 
         self.num_samples = len(self.images)
 
@@ -27,21 +27,20 @@ class CreateDataset(Dataset):
         return self.num_samples
 
     def __getitem__(self, index):
-        identity = torch.tensor(self.identity[index], dtype=torch.int64)
-        stimulus = torch.tensor(self.stimulus[index], dtype=torch.int64)
-        alcoholism = torch.tensor(self.alcoholism[index], dtype=torch.int64)
+        identity = torch.tensor(self.identity[index], dtype=torch.float32)
+        stimulus = torch.tensor(self.stimulus[index], dtype=torch.float32)
+        alcoholism = torch.tensor(self.alcoholism[index], dtype=torch.float32)
 
         image = self.images[index]
         image = torch.tensor(image, dtype=torch.float32).permute(2, 0, 1)
-        image = convert(image, 0, 1, torch.float32)
+        image = convert(image, 0, 1) ################################################################################################################
 
         if not self.transform is None:
             image = self.transform(image)
 
         # prepare mask for conditional generation
         image_c_real, image_c_fake, condition_array_real, condition_array_fake = get_conditioned_image(image)
-        ##### change datatype
-        targets_real = torch.cat((identity, stimulus, alcoholism)).reshape(-1, 1) # long
+        targets_real = torch.cat((identity, stimulus, alcoholism)).reshape(-1, 1)
         targets_fake = targets_real * condition_array_fake # float
         return image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake
 
@@ -75,7 +74,7 @@ def get_conditioned_image(image):
 
     return image_c_real, image_c_fake, condition_array_real, condition_array_fake
 
-def convert(source, min_value=0, max_value=1, type=torch.float32):
+def convert(source, min_value=0, max_value=1):
   smin = source.min()
   smax = source.max()
 
