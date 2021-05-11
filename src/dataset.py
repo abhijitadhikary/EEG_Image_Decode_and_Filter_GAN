@@ -39,11 +39,11 @@ class CreateDataset(Dataset):
             image = self.transform(image)
 
         # prepare mask for conditional generation
-        # image_c_real, image_c_fake, condition_array = get_conditioned_image(image)
         image_c_real, image_c_fake, condition_array_real, condition_array_fake = get_conditioned_image(image)
-        # image_real = create_real_condiitoned_image(image)
-
-        return image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism
+        ##### change datatype
+        targets_real = torch.cat((identity, stimulus, alcoholism)).reshape(-1, 1) # long
+        targets_fake = targets_real * condition_array_fake # float
+        return image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake
 
 
 def get_dataloaders(args):
@@ -74,12 +74,6 @@ def get_conditioned_image(image):
     image_c_real = torch.cat((image, filter_identity, filter_stimulus, filter_alcoholism), dim=0)
 
     return image_c_real, image_c_fake, condition_array_real, condition_array_fake
-
-# def create_real_condiitoned_image(image):
-#     num_channels, height, width = image.shape
-#     ones = torch.ones((1, height, width), dtype=torch.float32)
-#     image_real = torch.cat((image, ones, ones, ones), dim=0)
-#     return image_real
 
 def convert(source, min_value=0, max_value=1, type=torch.float32):
   smin = source.min()

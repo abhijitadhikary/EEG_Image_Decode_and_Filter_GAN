@@ -16,15 +16,10 @@ def forward_pass(args, dataloader, mode='train'):
             args.model_D.eval()
             args.model_G.eval()
 
-        # image_real, image_conditioned, identity, stimulus, alcoholism, condition_array_real, condition_array_fake = batch
-        # image_real, image_conditioned, identity, stimulus, alcoholism, condition_array_real, condition_array_fake = \
-        #     image_real.to(args.device), image_conditioned.to(args.device), identity.to(args.device), stimulus.to(args.device), \
-        #     alcoholism.to(args.device), condition_array_real.to(args.device), condition_array_fake.to(args.device)
-
-        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism = batch
-        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism = \
+        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake = batch
+        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake = \
             image.to(args.device), image_c_real.to(args.device), image_c_fake.to(args.device), condition_array_real.to(args.device), \
-            condition_array_fake.to(args.device), identity.to(args.device), stimulus.to(args.device), alcoholism.to(args.device)
+            condition_array_fake.to(args.device), identity.to(args.device), stimulus.to(args.device), alcoholism.to(args.device), targets_real.to(args.device), targets_fake.to(args.device)
 
         batch_size, num_channels, height, width = image.shape
         num_channels_cat = image_c_fake.shape[1]
@@ -38,11 +33,19 @@ def forward_pass(args, dataloader, mode='train'):
         # train discriminator - real
         args.model_D.zero_grad()
         out_D_real = args.model_D(image_c_real).squeeze(3)
-        loss_D_real = args.criterion_D(out_D_real, condition_array_real)
+        loss_D_real = args.criterion_D(out_D_real, targets_real)
+        # loss_D_real_id = args.criterion_D_id(out_D_real[:, 0], targets_real[:, 0])
+        # loss_D_real_stm = args.criterion_D_stm(out_D_real[:, 1], targets_real[:, 1])
+        # loss_D_real_alc = args.criterion_D_alc(out_D_real[:, 2], targets_real[:, 2])
+        # loss_D_real = loss_D_real_id + loss_D_real_stm + loss_D_real_alc
 
         # train discriminator - fake
         out_D_fake = args.model_D(image_fake_rec.detach()).squeeze(3)
         loss_D_fake = args.criterion_D(out_D_fake, condition_array_fake)
+        # loss_D_fake_id = args.criterion_D_id(out_D_fake[:, 0], targets_fake[:, 0])
+        # loss_D_fake_stm = args.criterion_D_stm(out_D_fake[:, 1], targets_fake[:, 1])
+        # loss_D_fake_alc = args.criterion_D_alc(out_D_fake[:, 2], targets_fake[:, 2])
+        # loss_D_fake = loss_D_fake_id + loss_D_fake_stm + loss_D_fake_alc
 
         loss_D = (loss_D_real + loss_D_fake) * args.loss_D_factor
 

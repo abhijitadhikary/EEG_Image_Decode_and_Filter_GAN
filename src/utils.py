@@ -45,6 +45,10 @@ def setup_model_parameters():
     args.criterion_D = nn.BCELoss()
     args.criterion_G = nn.L1Loss()
 
+    args.criterion_D_alc = nn.L1Loss()
+    args.criterion_D_stm = nn.L1Loss()
+    args.criterion_D_id = nn.L1Loss()
+
     args.optimizer_D = optim.Adam(args.model_D.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
     args.optimizer_G = optim.Adam(args.model_G.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
 
