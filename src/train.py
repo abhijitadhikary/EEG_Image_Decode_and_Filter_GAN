@@ -16,18 +16,18 @@ def forward_pass(args, dataloader, mode='train'):
             args.model_D.eval()
             args.model_G.eval()
 
-        image_real, image_cat, identity, stimulus, alcoholism, condition_array_real, condition_array_fake = batch
-        image_real, image_cat, identity, stimulus, alcoholism, condition_array_real, condition_array_fake = \
-            image_real.to(args.device), image_cat.to(args.device), identity.to(args.device), stimulus.to(args.device), \
+        image_real, image_conditioned, identity, stimulus, alcoholism, condition_array_real, condition_array_fake = batch
+        image_real, image_conditioned, identity, stimulus, alcoholism, condition_array_real, condition_array_fake = \
+            image_real.to(args.device), image_conditioned.to(args.device), identity.to(args.device), stimulus.to(args.device), \
             alcoholism.to(args.device), condition_array_real.to(args.device), condition_array_fake.to(args.device)
         batch_size, num_channels, height, width = image_real.shape
-        num_channels_cat = image_cat.shape[1]
+        num_channels_cat = image_conditioned.shape[1]
 
         # generate image_fake image
-        image_fake_temp = args.model_G.forward(image_cat)
+        image_fake_temp = args.model_G.forward(image_conditioned)
         image_fake = torch.ones((batch_size, num_channels_cat, height, width)).to(args.device)
         image_fake[:, :3, :, :] = image_fake_temp
-        image_fake[:, 3:, :, :] = image_cat[:, 3:, :, :]
+        image_fake[:, 3:, :, :] = image_conditioned[:, 3:, :, :]
 
         # train discriminator - real
         args.model_D.zero_grad()

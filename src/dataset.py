@@ -39,10 +39,10 @@ class CreateDataset(Dataset):
             image = self.transform(image)
 
         # prepare mask for conditional generation
-        image_fake, condition_array_fake, condition_array_real = get_conditioned_image(image)
+        image_conditioned, condition_array_fake, condition_array_real = get_conditioned_image(image)
         image_real = create_real_condiitoned_image(image)
 
-        return image_real, image_fake, identity, stimulus, alcoholism, condition_array_real, condition_array_fake
+        return image_real, image_conditioned, identity, stimulus, alcoholism, condition_array_real, condition_array_fake
 
 
 def get_dataloaders(args):
@@ -65,9 +65,9 @@ def get_conditioned_image(image):
     num_features = 3
     condition_array_fake = torch.tensor([(np.random.rand(1) > 0.5).astype(np.float32) for index in range(num_features)])
     filter_identity, filter_stimulus, filter_alcoholism = ([condition_array_fake[index] * torch.ones((1, height, width), dtype=torch.float32) for index in range(3)])
-    image_fake = torch.cat((image, filter_identity, filter_stimulus, filter_alcoholism), dim=0)
+    image_conditioned = torch.cat((image, filter_identity, filter_stimulus, filter_alcoholism), dim=0)
     condition_array_real = torch.ones_like(condition_array_fake)
-    return image_fake, condition_array_fake, condition_array_real
+    return image_conditioned, condition_array_fake, condition_array_real
 
 def create_real_condiitoned_image(image):
     num_channels, height, width = image.shape

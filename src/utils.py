@@ -2,7 +2,6 @@ import argparse
 import torch
 import matplotlib.pyplot as plt
 import os
-import shutil
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
