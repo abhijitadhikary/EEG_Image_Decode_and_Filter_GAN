@@ -2,18 +2,20 @@ import argparse
 import torch
 import matplotlib.pyplot as plt
 import os
+import shutil
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from dataset import get_dataloaders
 from discriminator import Discriminator
 from generator import UNet
+import numpy as np
 
 
 def get_args():
     args = argparse.Namespace()
     args.cuda_index = 0
-    args.num_epochs = 3
+    args.num_epochs = 20
     args.start_epoch = 0
     args.batch_size = True
     args.root = '..'
@@ -26,6 +28,10 @@ def get_args():
     args.batch_size_validation = 192
     args.loss_D_factor = 1
     args.learning_rate = 0.0002
+    args.num_keep_best = 3
+    args.resume_condition = True
+    args.resume_epoch = 9
+    args.checkpoint_path = os.path.join('..', 'experiments', 'checkpoints')
     return args
 
 def setup_model_parameters():
@@ -51,6 +57,13 @@ def setup_model_parameters():
     args.loss_D_val_running = []
     args.loss_G_val_running = []
 
+    args.loss_D_best = np.inf
+    args.loss_G_best = np.inf
+
+    # load model
+    if args.resume_condition:
+        load_model(args)
+
     return args
 
 def convert(source, min_value=0, max_value=1, type=torch.float32):
@@ -65,12 +78,12 @@ def convert(source, min_value=0, max_value=1, type=torch.float32):
 
 def print_loss(loss_D, loss_G, index_epoch=-1, num_epochs=-1, mode='train'):
     if mode == 'test':
-        print(f'\n---------> {mode}\t'
+        print(f'---------> {mode}\t'
               f'D_loss_{mode}: {loss_D:.4f}\t'
               f'G_loss_{mode}: {loss_G:.4f}'
               )
     else:
-        print(f'\n{mode}\tepoch: [{index_epoch + 1}/{num_epochs}]\t'
+        print(f'{mode}\tepoch: [{index_epoch + 1}/{num_epochs}]\t'
               f'D_loss_{mode}: {loss_D:.4f}\t'
               f'G_loss_{mode}: {loss_G:.4f}'
               )
@@ -93,7 +106,9 @@ def create_dirs():
         ['..', 'notebooks'],
         ['..', 'output'],
         ['..', 'runs', 'real'],
-        ['..', 'runs', 'fake']
+        ['..', 'runs', 'fake'],
+        ['..', 'experiments', 'checkpoints'],
+
     ]
     for current_dir in dir_list:
         current_path = current_dir[0]
@@ -103,3 +118,47 @@ def create_dirs():
         if not os.path.exists(current_path):
             os.makedirs(current_path)
 
+def remove_all_files(args, path):
+    all_files = os.listdir(path)
+    if len(all_files) >= args.num_keep_best:
+        current_full_path = os.path.join(path, all_files[0])
+        os.remove(current_full_path)
+
+def save_model(args, loss_Dl, loss_G):
+    if loss_G < args.loss_G_best:
+        args.loss_G_best = loss_G
+
+        remove_all_files(args, args.checkpoint_path)
+
+        save_path = os.path.join(args.checkpoint_path, f'{args.index_epoch+1}.pth')
+        save_dict = {'epoch': args.index_epoch + 1,
+                     'learning_rate': args.learning_rate,
+                     'G_state_dict': args.model_G.state_dict(),
+                     'G_optim_dict': args.optimizer_G.state_dict(),
+                     'D_state_dict': args.model_D.state_dict(),
+                     'D_optim_dict': args.optimizer_D.state_dict()
+                     }
+
+        torch.save(save_dict, save_path)
+        print(f'New best model saved at {args.index_epoch+1}')
+
+def load_model(args):
+
+    load_path = os.path.join(args.checkpoint_path, f'{args.resume_epoch}.pth')
+
+    if load_path is not None:
+        if not os.path.exists(load_path):
+            raise FileNotFoundError(f'File {load_path} doesn\'t exist')
+
+        checkpoint = torch.load(load_path)
+
+        args.start_epoch = checkpoint['epoch']
+        args.learning_rate = checkpoint['learning_rate']
+        args.model_G.load_state_dict(checkpoint['G_state_dict'])
+        args.model_D.load_state_dict(checkpoint['D_state_dict'])
+        args.optimizer_G.load_state_dict(checkpoint['G_optim_dict'])
+        args.optimizer_D.load_state_dict(checkpoint['D_optim_dict'])
+
+        print(f'Model successfully loaded from epoch {args.resume_epoch}')
+
+        return args

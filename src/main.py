@@ -1,4 +1,4 @@
-from utils import print_loss, plot_train_vs_val_loss, setup_model_parameters
+from utils import print_loss, plot_train_vs_val_loss, setup_model_parameters, save_model
 from train import forward_pass
 
 cuda_index = 0
@@ -18,10 +18,13 @@ for index_epoch in range(args.start_epoch, args.num_epochs):
     args.loss_G_val_running.append(loss_G_epoch_val)
     print_loss(loss_D_epoch_val, loss_G_epoch_val, index_epoch, args.num_epochs, mode='val')
 
+    save_model(args, loss_D_epoch_val, loss_G_epoch_val)
+    plot_train_vs_val_loss(args.loss_D_train_running, args.loss_D_val_running, mode='D')
+    plot_train_vs_val_loss(args.loss_G_train_running, args.loss_G_val_running, mode='G')
+
 # test
 loss_D_epoch_test, loss_G_epoch_test = forward_pass(args, args.dataloader_test, mode='test')
 print_loss(loss_D_epoch_test, loss_G_epoch_test, mode='test')
 
-plot_train_vs_val_loss(args.loss_D_train_running, args.loss_D_val_running, mode='D')
-plot_train_vs_val_loss(args.loss_G_train_running, args.loss_G_val_running, mode='G')
+
 
