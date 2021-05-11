@@ -1,15 +1,6 @@
 import torch
 import torch.nn as nn
-from torch.nn import init
-import functools
-from torch.optim import lr_scheduler
-# from torchsummary import summary
-import numpy as np
-
-import torch
-import torch.nn as nn
 import torch.nn.functional as F
-
 
 class DoubleConv(nn.Module):
     """(convolution => [BN] => ReLU) * 2"""

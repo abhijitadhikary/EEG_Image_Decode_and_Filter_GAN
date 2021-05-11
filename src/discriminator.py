@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-
 
 class Discriminator(nn.Module):
     def __init__(self, nc=6, ndf=32, ngpu=1):

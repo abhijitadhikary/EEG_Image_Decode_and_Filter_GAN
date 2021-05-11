@@ -2,14 +2,9 @@ import torch
 import os
 from torch.utils.data import Dataset
 from torch.utils.data import DataLoader
-from torchvision.transforms import transforms
-from PIL import Image
 import torchvision
-from utils import convert
 import numpy as np
-import pandas as pd
 from scipy.io import loadmat
-
 
 class CreateDataset(Dataset):
     def __init__(self, args, variant, transform=None):
@@ -79,3 +74,13 @@ def create_real_condiitoned_image(image):
     ones = torch.ones((1, height, width), dtype=torch.float32)
     image_real = torch.cat((image, ones, ones, ones), dim=0)
     return image_real
+
+def convert(source, min_value=0, max_value=1, type=torch.float32):
+  smin = source.min()
+  smax = source.max()
+
+  a = (max_value - min_value) / (smax - smin)
+  b = max_value - a * smax
+  target = (a * source + b).astype(type)
+
+  return target

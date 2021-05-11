@@ -1,34 +1,12 @@
 import torch
-args = 0
-# dataloader = 0
-# args.model_G = 0
-# args.model_D = 0
-# args.criterion_D = 0
-# args.criterion_G = 0
-# args.optimizer_D = 0
-# args.optimizer_G = 0
-
-# def train(args):
-#     loss_D_train_running = []
-#     loss_G_val_running = []
-#     for index_epoch in range(args.start_epoch, args.num_epochs):
-#         num_batches = len(dataloader)
-#         for index_batch, batch in enumerate(dataloader):
-#             loss_D_value, loss_G_value = forward_pass(args, dataloader, mode='train')
-#
-#             loss_G_val_running.append(loss_G_value)
-#             loss_D_train_running.append(loss_D_value)
-#
-#             print(f'\nepoch: [{index_epoch + 1}/{args.num_epochs}]\t'
-#                   f'batch: [{index_batch + 1}/{num_batches}]\t'
-#                   f'D_loss: {loss_D_value:.4f}'
-#                   f'G_loss: {loss_G_value:.4f}'
-#                   )
+import torchvision
+import os
 
 def forward_pass(args, dataloader, mode='train'):
     num_batches = len(dataloader)
     loss_D_epoch = 0
     loss_G_epoch = 0
+
     # train
     for index_batch, batch in enumerate(dataloader):
         if mode == 'train':
@@ -66,8 +44,6 @@ def forward_pass(args, dataloader, mode='train'):
             loss_D.backward()
             args.optimizer_D.step()
 
-
-
         # train generator
         out_D_fake = args.model_D(image_fake).squeeze(3)
         args.model_G.zero_grad()
@@ -83,6 +59,17 @@ def forward_pass(args, dataloader, mode='train'):
         # loss_D_value, loss_G_value = forward_pass(args, batch, mode='train')
         loss_D_epoch += loss_D_value
         loss_G_epoch += loss_G_value
+
+        # create image grids for visualization
+        if index_batch == 0:
+            num_display = 8
+            img_grid_real = torchvision.utils.make_grid(image_real[:num_display, :3, :, :], normalize=True, range=(0, 1))
+            img_grid_fake = torchvision.utils.make_grid(image_fake_temp[:num_display], normalize=True, range=(0, 1))
+
+            # combine the grids
+            img_grid_combined = torch.hstack((img_grid_real, img_grid_fake))
+            output_path = os.path.join('..', 'output', f'{args.index_epoch}_{index_batch}_{mode}.jpg')
+            torchvision.utils.save_image(img_grid_combined, output_path)
 
     loss_D_epoch /= num_batches
     loss_G_epoch /= num_batches
