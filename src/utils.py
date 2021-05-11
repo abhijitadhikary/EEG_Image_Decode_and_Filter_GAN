@@ -51,8 +51,7 @@ def setup_model_parameters():
 
     args.dataloader_train, args.dataloader_test, args.dataloader_val = get_dataloaders(args)
 
-    args.writer_real = SummaryWriter(os.path.join('runs', 'real'))
-    args.writer_fake = SummaryWriter(os.path.join('runs', 'fake'))
+    args.writer = SummaryWriter(os.path.join('..', 'runs'))
     create_dirs()
 
     args.loss_D_train_running = []
@@ -108,8 +107,6 @@ def create_dirs():
         ['..', 'data', 'numpy'],
         ['..', 'notebooks'],
         ['..', 'output'],
-        ['..', 'runs', 'real'],
-        ['..', 'runs', 'fake'],
         ['..', 'experiments', 'checkpoints'],
 
     ]
