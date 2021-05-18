@@ -5,6 +5,6 @@
 
 3. model hyperparameters are set in utils.py get_args() method
 
-4. Output images are saved in the output folder
+4. Output images are saved in the `./output` folder. Checkpoints are saved in the `./checkpoints` folder. Tensorboard log files are aved in the `./runs` folder.
 
 5. To visualize using tensorboard run `tensorboard --logdir runs --port 6006` from the root directory
