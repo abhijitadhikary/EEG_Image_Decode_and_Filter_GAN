@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 from dataset import get_dataloaders
-from discriminator import Discriminator
+from discriminator import Discriminator_cls, Discriminator_adv
 from generator import UNet
 import numpy as np
 
@@ -25,7 +25,8 @@ def get_args():
     args.batch_size_train = 192
     args.batch_size_test = 192
     args.batch_size_validation = 192
-    args.loss_D_factor = 1
+    args.loss_D_cls_factor = 1
+    args.loss_D_adv_factor = 1
     args.loss_G_gan_factor = 1
     args.loss_G_l1_factor = 1
     args.learning_rate = 0.0002
@@ -39,30 +40,38 @@ def get_args():
 def setup_model_parameters():
     args = get_args()
     args.device = torch.device(f'cuda:{args.cuda_index}' if torch.cuda.is_available() else 'cpu')
+    args.model_D_cls = Discriminator_cls().to(args.device)
+    args.model_D_adv = Discriminator_adv().to(args.device)
     args.model_G = UNet().to(args.device)
-    args.model_D = Discriminator().to(args.device)
 
-    args.criterion_D = nn.BCELoss()
+    args.criterion_D_cls = nn.BCELoss()
+    args.criterion_D_adv = nn.BCELoss()
     args.criterion_G = nn.L1Loss()
 
     args.criterion_D_alc = nn.L1Loss()
     args.criterion_D_stm = nn.L1Loss()
     args.criterion_D_id = nn.L1Loss()
 
-    args.optimizer_D = optim.Adam(args.model_D.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
-    args.optimizer_G = optim.Adam(args.model_G.parameters(), lr=args.learning_rate, betas=(0.5, 0.999))
+    args.optimizer_D_cls = optim.Adam(args.model_D_cls.parameters(), lr=args.learning_rate, betas=(0.9, 0.999))
+    args.optimizer_D_adv = optim.Adam(args.model_D_adv.parameters(), lr=args.learning_rate, betas=(0.9, 0.999))
+    args.optimizer_G = optim.Adam(args.model_G.parameters(), lr=args.learning_rate, betas=(0.9, 0.999))
 
     args.dataloader_train, args.dataloader_test, args.dataloader_val = get_dataloaders(args)
 
     args.writer = SummaryWriter(os.path.join('..', 'runs'))
     create_dirs()
 
-    args.loss_D_train_running = []
+    args.loss_D_cls_train_running = []
+    args.loss_D_adv_train_running = []
+    args.loss_D_total_train_running = []
     args.loss_G_train_running = []
-    args.loss_D_val_running = []
+    args.loss_D_cls_val_running = []
+    args.loss_D_adv_val_running = []
+    args.loss_D_total_val_running = []
     args.loss_G_val_running = []
 
-    args.loss_D_best = np.inf
+    args.loss_D_cls_best = np.inf
+    args.loss_D_adv_best = np.inf
     args.loss_G_best = np.inf
 
     # load model
@@ -81,21 +90,25 @@ def convert(source, min_value=0, max_value=1, type=torch.float32):
 
   return target
 
-def print_loss(loss_D, loss_G, index_epoch=-1, num_epochs=-1, mode='train'):
+def print_loss(loss_D_cls, loss_D_adv, loss_D_total, loss_G, index_epoch=-1, num_epochs=-1, mode='train'):
     if mode == 'test':
         print(f'---------> {mode}\t'
-              f'D_loss_{mode}: {loss_D:.4f}\t'
+              f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
+              f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
+              f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
               f'G_loss_{mode}: {loss_G:.4f}'
               )
     else:
         print(f'{mode}\tepoch: [{index_epoch + 1}/{num_epochs}]\t'
-              f'D_loss_{mode}: {loss_D:.4f}\t'
+              f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
+              f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
+              f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
               f'G_loss_{mode}: {loss_G:.4f}'
               )
 
 def plot_train_vs_val_loss(loss_train, loss_val, mode='G'):
     plt.figure()
-    type = 'Generator' if mode == 'G' else 'Discriminator'
+    type = 'Generator' if mode == 'G' else 'Discriminator_cls'
     plt.title(f'{type} Loss')
     plt.plot(loss_train, label=f'{mode} loss train')
     plt.plot(loss_val, label=f'{mode} loss val')
@@ -127,7 +140,10 @@ def remove_all_files(args, path):
         current_full_path = os.path.join(path, all_files[0])
         os.remove(current_full_path)
 
-def save_model(args, loss_Dl, loss_G):
+def save_model(args, loss_D_cls, loss_D_adv, loss_G):
+    '''
+        need to update this to addommodate D loss
+    '''
     if loss_G < args.loss_G_best and args.save_condition:
         args.loss_G_best = loss_G
 
@@ -138,8 +154,10 @@ def save_model(args, loss_Dl, loss_G):
                      'learning_rate': args.learning_rate,
                      'G_state_dict': args.model_G.state_dict(),
                      'G_optim_dict': args.optimizer_G.state_dict(),
-                     'D_state_dict': args.model_D.state_dict(),
-                     'D_optim_dict': args.optimizer_D.state_dict()
+                     'D_cls_state_dict': args.model_D_cls.state_dict(),
+                     'D_cls_optim_dict': args.optimizer_D_cls.state_dict(),
+                     'D_adv_state_dict': args.model_D_adv.state_dict(),
+                     'D_adv_optim_dict': args.optimizer_D_adv.state_dict()
                      }
 
         torch.save(save_dict, save_path)
@@ -157,10 +175,12 @@ def load_model(args):
 
         args.start_epoch = checkpoint['epoch']
         args.learning_rate = checkpoint['learning_rate']
+        args.model_D_cls.load_state_dict(checkpoint['D_cls_state_dict'])
+        args.optimizer_D_cls.load_state_dict(checkpoint['D_cls_optim_dict'])
+        args.model_D_adv.load_state_dict(checkpoint['D_adv_state_dict'])
+        args.optimizer_D_adv.load_state_dict(checkpoint['D_adv_optim_dict'])
         args.model_G.load_state_dict(checkpoint['G_state_dict'])
-        args.model_D.load_state_dict(checkpoint['D_state_dict'])
         args.optimizer_G.load_state_dict(checkpoint['G_optim_dict'])
-        args.optimizer_D.load_state_dict(checkpoint['D_optim_dict'])
 
         print(f'Model successfully loaded from epoch {args.resume_epoch}')
 

@@ -40,13 +40,15 @@ class CreateDataset(Dataset):
 
         # prepare mask for conditional generation
         image_c_real, image_c_fake, condition_array_real, condition_array_fake = get_conditioned_image(image)
-        targets_real = torch.cat((identity, stimulus, alcoholism)).reshape(-1, 1)
-        targets_fake = targets_real * condition_array_fake # float
-        return image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake
+        targets_real_cls = torch.cat((identity, stimulus, alcoholism)).reshape(-1, 1)
+        targets_fake_cls = targets_real_cls * condition_array_fake # float
+        targets_real_adv = get_adv_label('real')
+        targets_fake_adv = get_adv_label('fake')
+        return image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, \
+               targets_real_cls, targets_real_adv, targets_fake_cls, targets_fake_adv
 
 
 def get_dataloaders(args):
-
     dataset_train = CreateDataset(args, 'train')
     dataset_test = CreateDataset(args, 'test')
     dataset_validation = CreateDataset(args, 'validation')
@@ -83,3 +85,17 @@ def convert(source, min_value=0, max_value=1):
   target = (a * source + b)
 
   return target
+
+def get_adv_label(mode='real'):
+    '''
+        needs to be updated to random multipliers
+    '''
+    label = torch.ones(1, dtype=torch.float32)
+    if mode == 'real':
+        multiplier = 0.9
+    elif mode == 'fake':
+        multiplier = 0.1
+    else:
+        raise NotImplementedError
+    label *= multiplier
+    return label

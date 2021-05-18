@@ -4,22 +4,31 @@ import os
 
 def forward_pass(args, dataloader, mode='train'):
     num_batches = len(dataloader)
-    loss_D_epoch = 0
+    loss_D_cls_epoch = 0
+    loss_D_adv_epoch = 0
+    loss_D_total_epoch = 0
     loss_G_epoch = 0
 
     # train
     for index_batch, batch in enumerate(dataloader):
         if mode == 'train':
-            args.model_D.train()
+            args.model_D_cls.train()
+            args.model_D_adv.train()
             args.model_G.train()
         else:
-            args.model_D.eval()
+            args.model_D_cls.eval()
+            args.model_D_adv.eval()
             args.model_G.eval()
 
-        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake = batch
-        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, targets_real, targets_fake = \
-            image.to(args.device), image_c_real.to(args.device), image_c_fake.to(args.device), condition_array_real.to(args.device), \
-            condition_array_fake.to(args.device), identity.to(args.device), stimulus.to(args.device), alcoholism.to(args.device), targets_real.to(args.device), targets_fake.to(args.device)
+        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, alcoholism, \
+                    targets_real_cls, targets_real_adv, targets_fake_cls, targets_fake_adv = batch
+        image, image_c_real, image_c_fake, condition_array_real, condition_array_fake, identity, stimulus, \
+                    alcoholism, targets_real_cls, targets_real_adv, targets_fake_cls, targets_fake_adv = \
+                    image.to(args.device), image_c_real.to(args.device), image_c_fake.to(args.device), \
+                    condition_array_real.to(args.device), condition_array_fake.to(args.device), \
+                    identity.to(args.device), stimulus.to(args.device), alcoholism.to(args.device), \
+                    targets_real_cls.to(args.device), targets_real_adv.to(args.device), \
+                    targets_fake_cls.to(args.device), targets_fake_adv.to(args.device)
 
         batch_size, num_channels, height, width = image.shape
         num_channels_cat = image_c_fake.shape[1]
@@ -28,47 +37,57 @@ def forward_pass(args, dataloader, mode='train'):
         image_fake_temp = args.model_G.forward(image_c_fake)
         image_fake_rec = torch.ones((batch_size, num_channels_cat, height, width)).to(args.device)
         image_fake_rec[:, :3] = image_fake_temp
-        image_fake_rec[:, 3:] = image
+        image_fake_rec[:, 3:] = image # this needs to be checked, should be the condition instead of the real image
 
         # train discriminator - real
-        args.model_D.zero_grad()
-        out_D_real = args.model_D(image_c_real).squeeze(3)
-        loss_D_real = args.criterion_D(out_D_real, targets_real)
-        # loss_D_real_id = args.criterion_D_id(out_D_real[:, 0], targets_real[:, 0])
-        # loss_D_real_stm = args.criterion_D_stm(out_D_real[:, 1], targets_real[:, 1])
-        # loss_D_real_alc = args.criterion_D_alc(out_D_real[:, 2], targets_real[:, 2])
-        # loss_D_real = loss_D_real_id + loss_D_real_stm + loss_D_real_alc
+        args.model_D_cls.zero_grad()
+        args.model_D_adv.zero_grad()
+        out_D_cls_real = args.model_D_cls(image_c_real).squeeze(3)
+        loss_D_cls_real = args.criterion_D_cls(out_D_cls_real, targets_real_cls)
+
+        out_D_adv_real = args.model_D_adv(image_c_real).reshape(-1, 1)
+        loss_D_adv_real = args.criterion_D_adv(out_D_adv_real, targets_real_adv)
 
         # train discriminator - fake
-        out_D_fake = args.model_D(image_fake_rec.detach()).squeeze(3)
-        loss_D_fake = args.criterion_D(out_D_fake, condition_array_fake)
-        # loss_D_fake_id = args.criterion_D_id(out_D_fake[:, 0], targets_fake[:, 0])
-        # loss_D_fake_stm = args.criterion_D_stm(out_D_fake[:, 1], targets_fake[:, 1])
-        # loss_D_fake_alc = args.criterion_D_alc(out_D_fake[:, 2], targets_fake[:, 2])
-        # loss_D_fake = loss_D_fake_id + loss_D_fake_stm + loss_D_fake_alc
+        out_D_cls_fake = args.model_D_cls(image_fake_rec.detach()).squeeze(3)
+        loss_D_cls_fake = args.criterion_D_cls(out_D_cls_fake, condition_array_fake)
+        out_D_adv_fake = args.model_D_adv(image_fake_rec.detach()).reshape(-1, 1)
+        loss_D_adv_fake = args.criterion_D_adv(out_D_adv_fake, targets_fake_adv)
 
-        loss_D = (loss_D_real + loss_D_fake) * args.loss_D_factor
+        loss_D_cls = (loss_D_cls_real + loss_D_cls_fake) * args.loss_D_cls_factor
+        loss_D_adv = (loss_D_adv_real + loss_D_adv_fake) * args.loss_D_adv_factor
+
+        loss_D = loss_D_cls + loss_D_adv
 
         if mode == 'train':
             loss_D.backward()
-            args.optimizer_D.step()
+            args.optimizer_D_cls.step()
+            args.optimizer_D_adv.step()
 
         # train generator
-        out_D_fake = args.model_D(image_fake_rec).squeeze(3)
+        out_D_cls_fake = args.model_D_cls(image_fake_rec).squeeze(3)
+        out_D_adv_fake = args.model_D_adv(image_fake_rec).reshape(-1, 1)
         args.model_G.zero_grad()
-        loss_G_gan = args.criterion_D(out_D_fake, condition_array_fake)
+        loss_G_cls = args.criterion_D_cls(out_D_cls_fake, condition_array_fake) # need to consider D adv
+        loss_G_adv = args.criterion_D_adv(out_D_adv_fake, targets_real_adv) # create a new/separate tensor for targets_real_adv
+        loss_G_gan = loss_G_cls + loss_G_adv
         loss_G_L1 = args.criterion_G(image_fake_temp, image)
+
         loss_G = (loss_G_gan * args.loss_G_gan_factor) + (loss_G_L1 * args.loss_G_l1_factor)
 
         if mode == 'train':
             loss_G.backward()
             args.optimizer_G.step()
 
-        loss_D_value = loss_D.detach().cpu().item()
+        loss_D_cls_value = loss_D_cls.detach().cpu().item()
+        loss_D_adv_value = loss_D_adv.detach().cpu().item()
+        loss_D_total_value = loss_D.detach().cpu().item()
         loss_G_value = loss_G.detach().cpu().item()
 
         # loss_D_value, loss_G_value = forward_pass(args, batch, mode='train')
-        loss_D_epoch += loss_D_value
+        loss_D_cls_epoch += loss_D_cls_value
+        loss_D_adv_epoch += loss_D_adv_value
+        loss_D_total_epoch += loss_D_total_value
         loss_G_epoch += loss_G_value
 
         # create image grids for visualization
@@ -82,10 +101,12 @@ def forward_pass(args, dataloader, mode='train'):
             output_path = os.path.join('..', 'output', f'{args.index_epoch}_{index_batch}_{mode}.jpg')
             torchvision.utils.save_image(img_grid_combined, output_path)
 
-    loss_D_epoch /= num_batches
+    loss_D_cls_epoch /= num_batches
+    loss_D_adv_epoch /= num_batches
+    loss_D_total_epoch /= num_batches
     loss_G_epoch /= num_batches
 
-    return loss_D_epoch, loss_G_epoch
+    return loss_D_cls_epoch, loss_D_adv_epoch, loss_D_total_epoch, loss_G_epoch
 
 
 
