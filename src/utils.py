@@ -14,7 +14,7 @@ import numpy as np
 def get_args():
     args = argparse.Namespace()
     args.cuda_index = 0
-    args.num_epochs = 1
+    args.num_epochs = 200
     args.start_epoch = 0
     args.batch_size = True
     args.root = '..'
