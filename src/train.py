@@ -42,7 +42,8 @@ def forward_pass(args, dataloader, mode='train'):
         image_fake_temp = args.model_G.forward(image_c_fake)
         image_fake_rec = torch.ones((batch_size, num_channels_cat, height, width)).to(args.device)
         image_fake_rec[:, :3] = image_fake_temp
-        image_fake_rec[:, 3:] = image # this needs to be checked, should be the condition instead of the real image
+        image_fake_rec[:, 3:] = image_c_fake[:, 3:] # this needs to be checked, should be the condition instead of the real image
+        # image_fake_rec[:, 3:] = image # this needs to be checked, should be the condition instead of the real image
 
         # train discriminator - real
         args.model_D_cls.zero_grad()
