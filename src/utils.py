@@ -117,22 +117,6 @@ def print_loss(loss_D_cls, loss_D_adv, loss_D_total, loss_G,
           f'D_adv_fake: {D_adv_conf_fake: .4f}'
           )
 
-
-    # if mode == 'test':
-    #     print(f'---------> {mode}\t'
-    #           f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
-    #           f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
-    #           f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
-    #           f'G_loss_{mode}: {loss_G:.4f}'
-    #           )
-    # else:
-    #     print(f'{mode}\tepoch: [{index_epoch + 1}/{num_epochs}]\t'
-    #           f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
-    #           f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
-    #           f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
-    #           f'G_loss_{mode}: {loss_G:.4f}'
-    #           )
-
 def plot_train_vs_val_loss(loss_train, loss_val, mode='G'):
     plt.figure()
     type = 'Generator' if mode == 'G' else 'Discriminator_cls'
@@ -188,7 +172,7 @@ def save_model(args, loss_D_cls, loss_D_adv, loss_G):
                      }
 
         torch.save(save_dict, save_path)
-        print(f'New best model saved at {args.index_epoch+1}')
+        print(f'*********************** New best model saved at {args.index_epoch+1} ***********************')
 
 def load_model(args):
 
