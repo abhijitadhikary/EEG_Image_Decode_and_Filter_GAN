@@ -14,7 +14,7 @@ import numpy as np
 def get_args():
     args = argparse.Namespace()
     args.cuda_index = 0
-    args.num_epochs = 200
+    args.num_epochs = 1
     args.start_epoch = 0
     args.batch_size = True
     args.root = '..'
@@ -27,6 +27,7 @@ def get_args():
     args.batch_size_validation = 192
     args.loss_D_cls_factor = 1
     args.loss_D_adv_factor = 1
+    args.loss_D_total_factor = 10
     args.loss_G_gan_factor = 1
     args.loss_G_l1_factor = 1
     args.learning_rate = 0.0002
@@ -90,21 +91,47 @@ def convert(source, min_value=0, max_value=1, type=torch.float32):
 
   return target
 
-def print_loss(loss_D_cls, loss_D_adv, loss_D_total, loss_G, index_epoch=-1, num_epochs=-1, mode='train'):
-    if mode == 'test':
-        print(f'---------> {mode}\t'
-              f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
-              f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
-              f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
-              f'G_loss_{mode}: {loss_G:.4f}'
-              )
-    else:
-        print(f'{mode}\tepoch: [{index_epoch + 1}/{num_epochs}]\t'
-              f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
-              f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
-              f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
-              f'G_loss_{mode}: {loss_G:.4f}'
-              )
+def print_loss(loss_D_cls, loss_D_adv, loss_D_total, loss_G,
+                D_cls_conf_real, D_adv_conf_real, D_cls_conf_fake, D_adv_conf_fake,
+                index_epoch=-1, num_epochs=-1, mode='train'):
+    epoch_num = ''
+    # space_pre = '\t\t\t\t'
+    space_pre = ''
+    space_post = '\t\t'
+    if mode == 'train':
+        epoch_num = f'epoch: [{index_epoch + 1}/{num_epochs}]\t'
+        space_pre = '\n'
+        space_post = '\t'
+    elif mode == 'test':
+        space_post = '\t'
+    print(f'{epoch_num}{space_pre}{mode}{space_post}'
+          f'Loss: -->\t'
+          f'D_cls: {loss_D_cls:.4f}\t'
+          f'D_adv: {loss_D_adv:.4f}\t\t'
+          f'D_total: {loss_D_total:.4f}\t\t'
+          f'G: {loss_G:.4f}\t\t'
+          f'Confidence: -->\t\t'
+          f'D_cls_real: {D_cls_conf_real: .4f}\t\t'
+          f'D_cls_fake: {D_cls_conf_fake: .4f}\t\t'
+          f'D_adv_real: {D_adv_conf_real: .4f}\t\t'
+          f'D_adv_fake: {D_adv_conf_fake: .4f}'
+          )
+
+
+    # if mode == 'test':
+    #     print(f'---------> {mode}\t'
+    #           f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
+    #           f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
+    #           f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
+    #           f'G_loss_{mode}: {loss_G:.4f}'
+    #           )
+    # else:
+    #     print(f'{mode}\tepoch: [{index_epoch + 1}/{num_epochs}]\t'
+    #           f'D_cls_loss_{mode}: {loss_D_cls:.4f}\t'
+    #           f'D_adv_loss_{mode}: {loss_D_adv:.4f}\t'
+    #           f'D_total_loss_{mode}: {loss_D_total:.4f}\t'
+    #           f'G_loss_{mode}: {loss_G:.4f}'
+    #           )
 
 def plot_train_vs_val_loss(loss_train, loss_val, mode='G'):
     plt.figure()

@@ -1,6 +1,7 @@
 import torch
 import torchvision
 import os
+from utils import print_loss
 
 def forward_pass(args, dataloader, mode='train'):
     num_batches = len(dataloader)
@@ -8,6 +9,10 @@ def forward_pass(args, dataloader, mode='train'):
     loss_D_adv_epoch = 0
     loss_D_total_epoch = 0
     loss_G_epoch = 0
+    D_cls_conf_real_epoch = 0
+    D_adv_conf_real_epoch = 0
+    D_cls_conf_fake_epoch = 0
+    D_adv_conf_fake_epoch = 0
 
     # train
     for index_batch, batch in enumerate(dataloader):
@@ -57,7 +62,20 @@ def forward_pass(args, dataloader, mode='train'):
         loss_D_cls = (loss_D_cls_real + loss_D_cls_fake) * args.loss_D_cls_factor
         loss_D_adv = (loss_D_adv_real + loss_D_adv_fake) * args.loss_D_adv_factor
 
-        loss_D = loss_D_cls + loss_D_adv
+        # measure the confidence of the discriminator
+        D_cls_conf_real = torch.mean(out_D_cls_real)
+        D_adv_conf_real = torch.mean(out_D_adv_real)
+        D_cls_conf_fake = torch.mean(out_D_cls_fake)
+        D_adv_conf_fake = torch.mean(out_D_adv_fake)
+
+        # add batch confidences to the epoch
+        D_cls_conf_real_epoch += D_cls_conf_real
+        D_adv_conf_real_epoch += D_adv_conf_real
+        D_cls_conf_fake_epoch += D_cls_conf_fake
+        D_adv_conf_fake_epoch += D_adv_conf_fake
+
+        # final D loss
+        loss_D = (loss_D_cls + loss_D_adv) * args.loss_D_total_factor
 
         if mode == 'train':
             loss_D.backward()
@@ -105,8 +123,18 @@ def forward_pass(args, dataloader, mode='train'):
     loss_D_adv_epoch /= num_batches
     loss_D_total_epoch /= num_batches
     loss_G_epoch /= num_batches
+    D_cls_conf_real_epoch /= num_batches
+    D_adv_conf_real_epoch /= num_batches
+    D_cls_conf_fake_epoch /= num_batches
+    D_adv_conf_fake_epoch /= num_batches
 
-    return loss_D_cls_epoch, loss_D_adv_epoch, loss_D_total_epoch, loss_G_epoch
+
+    print_loss(loss_D_cls_epoch, loss_D_adv_epoch, loss_D_total_epoch, loss_G_epoch,
+               D_cls_conf_real_epoch, D_adv_conf_real_epoch, D_cls_conf_fake_epoch, D_adv_conf_fake_epoch,
+               args.index_epoch, args.num_epochs, mode)
+
+    return loss_D_cls_epoch, loss_D_adv_epoch, loss_D_total_epoch, loss_G_epoch, \
+           D_cls_conf_real_epoch, D_adv_conf_real_epoch, D_cls_conf_fake_epoch, D_adv_conf_fake_epoch
 
 
 
